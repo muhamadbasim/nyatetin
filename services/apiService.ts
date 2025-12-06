@@ -130,6 +130,35 @@ class ApiService {
     return response.json();
   }
 
+  async updateTransaction(
+    id: string,
+    amount: number,
+    description: string,
+    category?: string
+  ): Promise<void> {
+    const userId = this.getUserId();
+    if (!userId) throw new Error('Belum login');
+
+    const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, amount, description, category }),
+    });
+
+    if (!response.ok) throw new Error('Gagal mengupdate transaksi');
+  }
+
+  async deleteTransaction(id: string): Promise<void> {
+    const userId = this.getUserId();
+    if (!userId) throw new Error('Belum login');
+
+    const response = await fetch(`${API_BASE_URL}/transactions/${id}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) throw new Error('Gagal menghapus transaksi');
+  }
+
   async updateInitialBalance(amount: number): Promise<void> {
     const userId = this.getUserId();
     if (!userId) throw new Error('Belum login');

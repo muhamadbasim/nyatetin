@@ -91,10 +91,33 @@ Ketik *bantuan* untuk melihat cara pakai.`;
     
     switch (result.command) {
       case 'reset':
-        // Delete user from local database to trigger welcome message again
-        db.prepare('DELETE FROM transactions WHERE user_id = ?').run(user.id);
-        db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
-        await sendReply(from, '🔄 Akun berhasil di-reset. Kirim pesan apapun untuk membuat akun baru.');
+        // Reset password only, keep account and transactions
+        const newPassword = generateRandomPassword();
+        const newPasswordHash = hashPassword(newPassword);
+        
+        db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+          .run(newPasswordHash, user.id);
+        
+        // Sync new password to D1
+        await syncUserToD1({
+          id: user.id,
+          phoneNumber,
+          username: localPhone,
+          passwordHash: newPasswordHash,
+          initialBalance: user.initial_balance || 0,
+        });
+        
+        const resetMsg = `🔄 *Password berhasil di-reset!*
+
+📱 *Login Dashboard:*
+${DASHBOARD_URL}
+
+👤 Username: \`${localPhone}\`
+🔑 Password baru: \`${newPassword}\`
+
+Data transaksi kamu tetap aman.`;
+        
+        await sendReply(from, resetMsg);
         return;
         
       case 'help':
@@ -192,7 +215,7 @@ function getHelpMessage(): string {
 
 *Lainnya:*
 \`bantuan\` - panduan ini
-\`reset\` - reset akun
+\`reset\` - reset password
 
 💡 Singkatan: rb/ribu, jt/juta, k`;
 }

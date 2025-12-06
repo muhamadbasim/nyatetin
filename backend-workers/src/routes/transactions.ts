@@ -106,3 +106,53 @@ transactionRoutes.post('/sync', async (c) => {
 
   return c.json({ success: true, message: 'Transaction synced' }, 201);
 });
+
+// Update transaction
+transactionRoutes.put('/:id', async (c) => {
+  const id = c.req.param('id');
+  const { userId, amount, description, category } = await c.req.json();
+
+  if (!userId || !amount || !description) {
+    return c.json({ error: 'Data tidak lengkap' }, 400);
+  }
+
+  // Verify transaction belongs to user
+  const existing = await c.env.DB.prepare(
+    'SELECT id FROM transactions WHERE id = ? AND user_id = ?'
+  ).bind(id, userId).first();
+
+  if (!existing) {
+    return c.json({ error: 'Transaksi tidak ditemukan' }, 404);
+  }
+
+  await c.env.DB.prepare(
+    'UPDATE transactions SET amount = ?, description = ?, category = ? WHERE id = ?'
+  ).bind(amount, description, category || 'Lainnya', id).run();
+
+  return c.json({ success: true, message: 'Transaksi berhasil diupdate' });
+});
+
+// Delete transaction
+transactionRoutes.delete('/:id', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.query('userId');
+
+  if (!userId) {
+    return c.json({ error: 'userId diperlukan' }, 400);
+  }
+
+  // Verify transaction belongs to user
+  const existing = await c.env.DB.prepare(
+    'SELECT id FROM transactions WHERE id = ? AND user_id = ?'
+  ).bind(id, userId).first();
+
+  if (!existing) {
+    return c.json({ error: 'Transaksi tidak ditemukan' }, 404);
+  }
+
+  await c.env.DB.prepare(
+    'DELETE FROM transactions WHERE id = ?'
+  ).bind(id).run();
+
+  return c.json({ success: true, message: 'Transaksi berhasil dihapus' });
+});

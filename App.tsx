@@ -126,6 +126,24 @@ const App: React.FC = () => {
     handleLogout();
   };
 
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      await apiService.deleteTransaction(id);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to delete transaction:', error);
+    }
+  };
+
+  const handleEditTransaction = async (id: string, data: { amount: number; description: string; category: string }) => {
+    try {
+      await apiService.updateTransaction(id, data.amount, data.description, data.category);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to update transaction:', error);
+    }
+  };
+
   // Show login if not logged in
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
@@ -143,7 +161,11 @@ const App: React.FC = () => {
           />
         )}
         {activeTab === Tab.TRANSACTIONS && (
-          <TransactionList transactions={transactions} />
+          <TransactionList 
+            transactions={transactions} 
+            onDelete={handleDeleteTransaction}
+            onEdit={handleEditTransaction}
+          />
         )}
         {activeTab === Tab.SETTINGS && (
             <Settings 
