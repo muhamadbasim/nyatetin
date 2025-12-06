@@ -177,25 +177,24 @@ function getHelpMessage(): string {
   return `📖 *Panduan Nyatetin*
 
 *Catat Pengeluaran:*
-\`- 50rb makan siang\`
+\`50rb makan\` ← langsung tulis
 \`keluar 25rb kopi\`
 \`bayar 1.5jt listrik\`
 
 *Catat Pemasukan:*
-\`+ 5jt gaji\`
-\`masuk 500rb freelance\`
-\`terima 100rb transfer\`
+\`masuk 5jt gaji\`
+\`terima 500rb freelance\`
+\`+ 100rb cashback\`
 
-*Cek Saldo:*
-\`saldo\`
+*Cek & Set Saldo:*
+\`saldo\` - cek saldo
+\`saldo awal 1jt\` - set saldo awal
 
-*Set Saldo Awal:*
-\`saldo awal 1jt\`
+*Lainnya:*
+\`bantuan\` - panduan ini
+\`reset\` - reset akun
 
-*Bantuan:*
-\`bantuan\`
-
-💡 *Tips:* Gunakan rb/ribu, jt/juta, atau k untuk singkatan angka.`;
+💡 Singkatan: rb/ribu, jt/juta, k`;
 }
 
 function formatNumber(num: number): string {
