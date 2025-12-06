@@ -90,6 +90,16 @@ export function parseMessage(text: string): ParseResult {
     };
   }
   
+  // Default: treat as expense if it looks like a transaction (e.g., "50rb makan")
+  const defaultParsed = parseTransaction(text.trim());
+  if (defaultParsed) {
+    return { 
+      success: true, 
+      command: 'expense', 
+      data: { type: 'expense', ...defaultParsed } 
+    };
+  }
+  
   return { success: false };
 }
 

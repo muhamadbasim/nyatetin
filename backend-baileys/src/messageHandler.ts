@@ -62,7 +62,7 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
         initialBalance: 0,
       });
       
-      const welcomeMsg = `🎉 *Selamat datang di Catat Uang!*
+      const welcomeMsg = `🎉 *Selamat datang di Nyatetin!*
 
 Akun kamu sudah dibuat otomatis.
 
@@ -164,27 +164,28 @@ async function sendReply(to: string, text: string): Promise<void> {
 }
 
 function getHelpMessage(): string {
-  return `📖 *Panduan Catat Uang*
+  return `📖 *Panduan Nyatetin*
 
 *Catat Pengeluaran:*
-\`- 50000 makan siang\`
-\`- 25rb kopi\`
-\`- 1.5jt bayar listrik\`
+\`- 50rb makan siang\`
+\`keluar 25rb kopi\`
+\`bayar 1.5jt listrik\`
 
 *Catat Pemasukan:*
-\`+ 5000000 gaji\`
-\`+ 500rb freelance\`
+\`+ 5jt gaji\`
+\`masuk 500rb freelance\`
+\`terima 100rb transfer\`
 
 *Cek Saldo:*
 \`saldo\`
 
 *Set Saldo Awal:*
-\`saldo awal 1000000\`
+\`saldo awal 1jt\`
 
 *Bantuan:*
-\`bantuan\` atau \`help\`
+\`bantuan\`
 
-💡 *Tips:* Gunakan rb (ribu), jt (juta), atau k untuk singkatan angka.`;
+💡 *Tips:* Gunakan rb/ribu, jt/juta, atau k untuk singkatan angka.`;
 }
 
 function formatNumber(num: number): string {
