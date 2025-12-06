@@ -8,6 +8,14 @@ import { syncUserToD1, syncTransactionToD1, syncBalanceToD1 } from './cloudflare
 
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://catat-uang.pages.dev';
 
+// Convert international format (628xxx) to local format (08xxx)
+function toLocalFormat(phone: string): string {
+  if (phone.startsWith('62')) {
+    return '0' + phone.slice(2);
+  }
+  return phone;
+}
+
 export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise<void> {
   if (!msg.key) return;
   
@@ -15,6 +23,7 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
   if (!from || from.includes('@g.us')) return; // Ignore group messages
   
   const phoneNumber = from.replace('@s.whatsapp.net', '');
+  const localPhone = toLocalFormat(phoneNumber);
   const text = msg.message?.conversation || 
                msg.message?.extendedTextMessage?.text || '';
   
@@ -42,13 +51,13 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
       db.prepare(`
         INSERT INTO users (id, phone_number, username, password_hash, initial_balance, created_at)
         VALUES (?, ?, ?, ?, 0, ?)
-      `).run(id, phoneNumber, phoneNumber, passwordHash, now);
+      `).run(id, phoneNumber, localPhone, passwordHash, now);
       
       // Sync to Cloudflare D1
       await syncUserToD1({
         id,
         phoneNumber,
-        username: phoneNumber,
+        username: localPhone,
         passwordHash,
         initialBalance: 0,
       });
@@ -60,7 +69,7 @@ Akun kamu sudah dibuat otomatis.
 📱 *Login Dashboard:*
 ${DASHBOARD_URL}
 
-👤 Username: \`${phoneNumber}\`
+👤 Username: \`${localPhone}\`
 🔑 Password: \`${password}\`
 
 Ketik *bantuan* untuk melihat cara pakai.`;

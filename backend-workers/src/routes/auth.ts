@@ -5,10 +5,17 @@ import { hashPassword, verifyPassword } from '../utils/auth';
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
 authRoutes.post('/login', async (c) => {
-  const { username, password } = await c.req.json();
+  let { username, password } = await c.req.json();
   
   if (!username || !password) {
     return c.json({ error: 'Username dan password diperlukan' }, 400);
+  }
+
+  // Normalize phone number - support both formats
+  // 08xxx -> 08xxx (keep as is)
+  // 628xxx -> 08xxx (convert to local)
+  if (username.startsWith('62')) {
+    username = '0' + username.slice(2);
   }
 
   const user = await c.env.DB.prepare(
