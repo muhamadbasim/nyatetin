@@ -1,0 +1,5 @@
+{
+  "name": "Catat Uang AI",
+  "description": "A smart expense tracker replicating the 'Catat Uang' interface with AI-powered natural language transaction entry.",
+  "requestFramePermissions": []
+}

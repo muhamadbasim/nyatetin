@@ -1,0 +1,17 @@
+name = "catat-uang-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+DASHBOARD_URL = "https://catat-uang.pages.dev"
+WHATSAPP_VERIFY_TOKEN = "catat_uang_verify_123"
+# Set these via Cloudflare Dashboard > Workers > catat-uang-api > Settings > Variables
+# WHATSAPP_ACCESS_TOKEN = "your_token_from_meta"
+# WHATSAPP_PHONE_NUMBER_ID = "your_phone_number_id"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "catat-uang-db"
+database_id = "3984245b-9fa1-4e15-9199-af46941e721c"
