@@ -21,44 +21,57 @@ export interface SyncTransaction {
 
 // Create or update user in D1
 export async function syncUserToD1(user: SyncUser): Promise<boolean> {
+  const url = `${WORKERS_API_URL}/users/sync`;
+  console.log(`🔄 Syncing user to D1: ${url}`);
+  console.log(`   Data:`, JSON.stringify(user));
+  
   try {
-    const response = await fetch(`${WORKERS_API_URL}/users/sync`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(user),
     });
     
+    const responseText = await response.text();
+    console.log(`   Response: ${response.status} - ${responseText}`);
+    
     if (!response.ok) {
-      console.error('Failed to sync user to D1:', await response.text());
+      console.error('❌ Failed to sync user to D1:', responseText);
       return false;
     }
     
     console.log(`✅ User ${user.phoneNumber} synced to D1`);
     return true;
   } catch (error) {
-    console.error('Error syncing user to D1:', error);
+    console.error('❌ Error syncing user to D1:', error);
     return false;
   }
 }
 
 // Create transaction in D1
 export async function syncTransactionToD1(tx: SyncTransaction): Promise<boolean> {
+  const url = `${WORKERS_API_URL}/transactions/sync`;
+  console.log(`🔄 Syncing transaction to D1: ${url}`);
+  
   try {
-    const response = await fetch(`${WORKERS_API_URL}/transactions/sync`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tx),
     });
     
+    const responseText = await response.text();
+    console.log(`   Response: ${response.status} - ${responseText}`);
+    
     if (!response.ok) {
-      console.error('Failed to sync transaction to D1:', await response.text());
+      console.error('❌ Failed to sync transaction to D1:', responseText);
       return false;
     }
     
     console.log(`✅ Transaction ${tx.id} synced to D1`);
     return true;
   } catch (error) {
-    console.error('Error syncing transaction to D1:', error);
+    console.error('❌ Error syncing transaction to D1:', error);
     return false;
   }
 }

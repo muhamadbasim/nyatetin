@@ -1,6 +1,6 @@
 interface ParseResult {
   success: boolean;
-  command?: 'income' | 'expense' | 'get_balance' | 'set_balance' | 'help';
+  command?: 'income' | 'expense' | 'get_balance' | 'set_balance' | 'help' | 'reset';
   data?: {
     type?: 'income' | 'expense';
     amount: number;
@@ -15,6 +15,11 @@ export function parseMessage(text: string): ParseResult {
   // Help command
   if (trimmed === 'bantuan' || trimmed === 'help' || trimmed === '?') {
     return { success: true, command: 'help' };
+  }
+  
+  // Reset command (for testing)
+  if (trimmed === 'reset' || trimmed === 'reset akun') {
+    return { success: true, command: 'reset' };
   }
   
   // Get balance

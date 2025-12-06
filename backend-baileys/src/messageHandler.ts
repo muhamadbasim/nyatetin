@@ -7,6 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { syncUserToD1, syncTransactionToD1, syncBalanceToD1 } from './cloudflareSync';
 
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://catat-uang.pages.dev';
+const WORKERS_API_URL = process.env.WORKERS_API_URL || 'https://catat-uang-api.muhamadbasim.workers.dev/api';
+
+console.log('🔧 Config:', { DASHBOARD_URL, WORKERS_API_URL });
 
 // Convert international format (628xxx) to local format (08xxx)
 function toLocalFormat(phone: string): string {
@@ -87,6 +90,13 @@ Ketik *bantuan* untuk melihat cara pakai.`;
     }
     
     switch (result.command) {
+      case 'reset':
+        // Delete user from local database to trigger welcome message again
+        db.prepare('DELETE FROM transactions WHERE user_id = ?').run(user.id);
+        db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
+        await sendReply(from, '🔄 Akun berhasil di-reset. Kirim pesan apapun untuk membuat akun baru.');
+        return;
+        
       case 'help':
         await sendReply(from, getHelpMessage());
         break;
