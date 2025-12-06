@@ -9,6 +9,8 @@ import { syncUserToD1, syncTransactionToD1, syncBalanceToD1 } from './cloudflare
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://catat-uang.pages.dev';
 
 export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise<void> {
+  if (!msg.key) return;
+  
   const from = msg.key.remoteJid;
   if (!from || from.includes('@g.us')) return; // Ignore group messages
   
@@ -81,8 +83,25 @@ Ketik *bantuan* untuk melihat cara pakai.`;
         break;
         
       case 'get_balance':
-        const balance = user.initial_balance || 0;
-        await sendReply(from, `💰 *Saldo saat ini:* Rp ${formatNumber(balance)}`);
+        // Calculate total balance from transactions
+        const initialBalance = user.initial_balance || 0;
+        const incomeResult = db.prepare(
+          "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = ? AND type = 'income'"
+        ).get(user.id) as any;
+        const expenseResult = db.prepare(
+          "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = ? AND type = 'expense'"
+        ).get(user.id) as any;
+        
+        const totalIncome = incomeResult?.total || 0;
+        const totalExpense = expenseResult?.total || 0;
+        const totalBalance = initialBalance + totalIncome - totalExpense;
+        
+        await sendReply(from, `💰 *Saldo saat ini:* Rp ${formatNumber(totalBalance)}
+
+📊 *Ringkasan:*
+• Saldo awal: Rp ${formatNumber(initialBalance)}
+• Total pemasukan: Rp ${formatNumber(totalIncome)}
+• Total pengeluaran: Rp ${formatNumber(totalExpense)}`);
         break;
         
       case 'set_balance':
