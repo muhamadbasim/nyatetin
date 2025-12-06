@@ -32,12 +32,27 @@ export function parseMessage(text: string): ParseResult {
     return { success: true, command: 'set_balance', data: { amount } };
   }
   
-  // Income: "+ 50000 description"
+  // Income: "+ 50000 description" or "masuk 50000 gaji"
   const incomeMatch = text.trim().match(/^\+\s*(.+)$/);
   if (incomeMatch) {
     const parsed = parseTransaction(incomeMatch[1]);
     if (!parsed) {
       return { success: false, error: 'Format: + [jumlah] [keterangan]' };
+    }
+    return { 
+      success: true, 
+      command: 'income', 
+      data: { type: 'income', ...parsed } 
+    };
+  }
+  
+  // Income with keyword: "masuk 50000 gaji" or "terima 500rb freelance"
+  const incomeKeywords = /^(masuk|terima|dapat|income|pemasukan)\s+(.+)$/i;
+  const incomeKeywordMatch = text.trim().match(incomeKeywords);
+  if (incomeKeywordMatch) {
+    const parsed = parseTransaction(incomeKeywordMatch[2]);
+    if (!parsed) {
+      return { success: false, error: 'Format: masuk [jumlah] [keterangan]' };
     }
     return { 
       success: true, 
@@ -52,6 +67,21 @@ export function parseMessage(text: string): ParseResult {
     const parsed = parseTransaction(expenseMatch[1]);
     if (!parsed) {
       return { success: false, error: 'Format: - [jumlah] [keterangan]' };
+    }
+    return { 
+      success: true, 
+      command: 'expense', 
+      data: { type: 'expense', ...parsed } 
+    };
+  }
+  
+  // Expense with keyword: "keluar 50000 makan" or "bayar 100rb listrik"
+  const expenseKeywords = /^(keluar|bayar|beli|expense|pengeluaran)\s+(.+)$/i;
+  const expenseKeywordMatch = text.trim().match(expenseKeywords);
+  if (expenseKeywordMatch) {
+    const parsed = parseTransaction(expenseKeywordMatch[2]);
+    if (!parsed) {
+      return { success: false, error: 'Format: keluar [jumlah] [keterangan]' };
     }
     return { 
       success: true, 
