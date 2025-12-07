@@ -171,7 +171,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     Belum punya akun?
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Daftar otomatis via WhatsApp bot
+                    Daftar otomatis via WhatsApp
                   </p>
                 </div>
                 <div className="flex items-center gap-1 bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold group-hover:bg-green-600 transition-colors">

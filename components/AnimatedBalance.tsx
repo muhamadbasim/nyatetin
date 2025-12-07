@@ -36,8 +36,8 @@ const AnimatedBalance: React.FC<AnimatedBalanceProps> = ({ balance }) => {
   }, [balance]);
 
   return (
-    <h2 className="text-4xl font-bold">
-      ${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    <h2 className="text-4xl font-bold text-white">
+      Rp {currentBalance.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
     </h2>
   );
 };

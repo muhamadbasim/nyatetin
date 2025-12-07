@@ -1,14 +1,20 @@
 import AnimatedBalance from './AnimatedBalance';
-import React from 'react';
-import { Wallet, TrendingUp, TrendingDown, MessageCircle, ArrowRight } from 'lucide-react';
-import { SummaryStats } from '../types';
+import AnimatedNumber from './AnimatedNumber';
+import React, { useState } from 'react';
+import { TrendingUp, TrendingDown, BarChart3, Sparkles, Lightbulb, RefreshCw, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
+import { SummaryStats, Transaction } from '../types';
 
 interface DashboardProps {
   stats: SummaryStats;
-  onOpenAIModal: () => void;
+  transactions: Transaction[];
+  onOpenAnalysis: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats, onOpenAIModal }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ stats, transactions }) => {
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<string>('');
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Selamat Pagi';
@@ -25,136 +31,247 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onOpenAIModal }) =>
     }).format(amount);
   };
 
+  // Generate local analysis
+  const generateAnalysis = () => {
+    setLoading(true);
+    
+    setTimeout(() => {
+      const tips: string[] = [];
+      const spendingRatio = stats.totalIncome > 0 ? (stats.totalExpense / stats.totalIncome) * 100 : 0;
+      
+      if (spendingRatio > 80) {
+        tips.push('⚠️ Pengeluaranmu sudah lebih dari 80% pemasukan. Coba kurangi pengeluaran non-esensial.');
+      } else if (spendingRatio > 50) {
+        tips.push('📊 Pengeluaranmu sekitar ' + spendingRatio.toFixed(0) + '% dari pemasukan. Masih aman, tapi bisa ditingkatkan.');
+      } else if (spendingRatio > 0) {
+        tips.push('🎉 Bagus! Kamu berhasil menyimpan lebih dari 50% pemasukan.');
+      }
+
+      const expenseMap = new Map<string, number>();
+      transactions.filter((t: Transaction) => t.type === 'expense').forEach((t: Transaction) => {
+        const cat = t.category || t.description || 'Lainnya';
+        expenseMap.set(cat, (expenseMap.get(cat) || 0) + t.amount);
+      });
+
+      if (expenseMap.size > 0) {
+        const sorted = Array.from(expenseMap.entries()).sort((a, b) => b[1] - a[1]);
+        const [topCat, topAmount] = sorted[0];
+        const topPercentage = stats.totalExpense > 0 ? (topAmount / stats.totalExpense) * 100 : 0;
+        tips.push(`💸 Pengeluaran terbesar: ${topCat} (${formatCurrency(topAmount)} - ${topPercentage.toFixed(0)}%)`);
+        if (topPercentage > 40) {
+          tips.push(`💡 Tip: Coba kurangi pengeluaran ${topCat} karena sudah lebih dari 40% total pengeluaran.`);
+        }
+      }
+
+      if (stats.totalBalance < 0) {
+        tips.push('🚨 Saldo negatif! Segera evaluasi pengeluaran dan cari sumber pemasukan tambahan.');
+      } else if (stats.totalBalance > 0 && stats.totalIncome > 0) {
+        const savingsRate = ((stats.totalIncome - stats.totalExpense) / stats.totalIncome) * 100;
+        tips.push(`💰 Tingkat tabungan: ${savingsRate.toFixed(0)}% dari total pemasukan.`);
+      }
+
+      tips.push('📝 Tip: Catat semua pengeluaran kecil, karena sering kali pengeluaran kecil yang menumpuk.');
+      setAnalysis(tips.join('\n\n'));
+      setLoading(false);
+    }, 500);
+  };
+
+  const handleAnalysisClick = () => {
+    if (!showAnalysis) {
+      setShowAnalysis(true);
+      if (!analysis) generateAnalysis();
+    } else {
+      setShowAnalysis(false);
+    }
+  };
+
   return (
-    <div className="pb-24 pt-4 px-4 space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-            Nyatetin
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400">
-            {getGreeting()} 👋
-          </p>
-        </div>
-        <div className="text-3xl animate-bounce">📝</div>
-      </header>
-
-      {/* Main Balance Card */}
-      <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden transition-all animate-gradient">
-        {/* Decorative circles */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-        
-        <div className="flex justify-between items-start mb-2 relative z-10">
-          <div className="flex items-center gap-2 text-emerald-100 text-sm font-medium">
-            <span className="bg-emerald-700/50 p-1 rounded">💰</span>
-            <span>Saldo Total</span>
-          </div>
-          <Wallet className="w-6 h-6 text-emerald-200" />
-        </div>
-        
-        <div className="relative z-10">
-          <AnimatedBalance balance={stats.totalBalance} />
-          <p className="text-xs text-emerald-200">
-            Kumulatif semua waktu • {stats.todayCount} transaksi hari ini
-          </p>
+    <div className="min-h-screen pb-24 relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600">
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-float"
+              style={{
+                left: `${15 + i * 15}%`,
+                top: `${5 + (i % 3) * 10}%`,
+                animationDelay: `${i * 0.5}s`,
+                animationDuration: `${3 + i * 0.5}s`,
+              }}
+            >
+              <span className="text-3xl opacity-20">
+                {['💰', '💵', '💳', '📊', '✨', '🎯'][i]}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Breakdown Card */}
-      <div className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-gray-400 dark:text-slate-500">$</span>
-          <h3 className="font-semibold text-gray-800 dark:text-white">Breakdown Keseluruhan</h3>
-        </div>
-        
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
-              <div className="w-1 h-4 bg-gray-300 dark:bg-slate-600 rounded-full"></div>
-              <span>Saldo Awal</span>
-            </div>
-            <span className="font-medium text-gray-700 dark:text-slate-200">{formatCurrency(stats.initialBalance)}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
-              <div className="w-1 h-4 bg-emerald-400 rounded-full"></div>
-              <span>Total Pemasukan</span>
-            </div>
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">+{formatCurrency(stats.totalIncome)}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
-              <div className="w-1 h-4 bg-rose-400 rounded-full"></div>
-              <span>Total Pengeluaran</span>
-            </div>
-            <span className="font-medium text-rose-600 dark:text-rose-400">-{formatCurrency(stats.totalExpense)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Daily Section Header */}
-      <div className="flex items-center justify-center gap-2 text-gray-400 dark:text-slate-600 text-sm transition-colors">
-        <div className="h-px w-8 bg-gray-300 dark:bg-slate-700"></div>
-        <span>Hari Ini</span>
-        <div className="h-px w-8 bg-gray-300 dark:bg-slate-700"></div>
-      </div>
-
-      {/* Daily Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Income */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900/30 relative transition-colors">
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400 text-sm">
-              <div className="p-1 bg-emerald-100 dark:bg-emerald-900/50 rounded text-emerald-600 dark:text-emerald-400">
-                <TrendingUp size={14} />
-              </div>
-              <span>Masuk</span>
-            </div>
-            <TrendingUp className="text-emerald-500 dark:text-emerald-400 w-4 h-4" />
-          </div>
-          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(stats.todayIncome)}</p>
-        </div>
-
-        {/* Expense */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-rose-100 dark:border-rose-900/30 relative transition-colors">
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400 text-sm">
-              <div className="p-1 bg-rose-100 dark:bg-rose-900/50 rounded text-rose-600 dark:text-rose-400">
-                <TrendingDown size={14} />
-              </div>
-              <span>Keluar</span>
-            </div>
-            <TrendingDown className="text-rose-500 dark:text-rose-400 w-4 h-4" />
-          </div>
-          <p className="text-xl font-bold text-rose-600 dark:text-rose-400">{formatCurrency(stats.todayExpense)}</p>
-        </div>
-      </div>
-
-      {/* Transaction Count */}
-      <div className="bg-white dark:bg-slate-800 px-5 py-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex justify-between items-center transition-colors">
-        <span className="text-gray-600 dark:text-slate-300">Transaksi Hari Ini</span>
-        <span className="font-bold text-gray-800 dark:text-white">{stats.todayCount}</span>
-      </div>
-
-      {/* AI Quick Add CTA */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-between gap-4 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" onClick={onOpenAIModal}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-             <MessageCircle size={20} />
-          </div>
+      {/* Content */}
+      <div className="relative z-10 px-4 pt-6 space-y-4">
+        {/* Header */}
+        <header className="flex items-center justify-between text-white mb-2">
           <div>
-            <h4 className="font-bold text-gray-800 dark:text-white">Catat Transaksi AI</h4>
-            <p className="text-xs text-gray-500 dark:text-slate-400">Ketik pesan natural ke AI</p>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <span>📝</span> Nyatetin
+            </h1>
+            <p className="text-sm text-emerald-100 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              {getGreeting()} 👋
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+            <span className="text-2xl">😊</span>
+          </div>
+        </header>
+
+        {/* Quick Stats - Hari Ini */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="text-xs text-gray-500">Masuk Hari Ini</span>
+            </div>
+            <p className="text-lg font-bold text-emerald-600">
+              <AnimatedNumber value={stats.todayIncome} prefix="Rp " className="text-lg font-bold text-emerald-600" />
+            </p>
+          </div>
+
+          <div className="bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-rose-100 rounded-lg flex items-center justify-center">
+                <TrendingDown className="w-4 h-4 text-rose-600" />
+              </div>
+              <span className="text-xs text-gray-500">Keluar Hari Ini</span>
+            </div>
+            <p className="text-lg font-bold text-rose-600">
+              <AnimatedNumber value={stats.todayExpense} prefix="Rp " className="text-lg font-bold text-rose-600" />
+            </p>
           </div>
         </div>
-        <button className="bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors">
-          Buka
-        </button>
+
+        {/* AI Analysis Card */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
+          <div 
+            className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-all"
+            onClick={handleAnalysisClick}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-800">Analisa Keuangan</h4>
+                <p className="text-xs text-gray-500">Lihat rekomendasi AI untuk keuanganmu</p>
+              </div>
+            </div>
+            <button className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md hover:shadow-lg transition-all flex items-center gap-1">
+              {showAnalysis ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showAnalysis ? 'Tutup' : 'Analisa'}
+            </button>
+          </div>
+
+          {showAnalysis && (
+            <div className="border-t border-gray-100 p-4 bg-gradient-to-br from-emerald-50 to-teal-50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-emerald-600" />
+                  <span className="font-semibold text-emerald-800 text-sm">Rekomendasi AI</span>
+                </div>
+                <button 
+                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); generateAnalysis(); }}
+                  disabled={loading}
+                  className="text-emerald-600 hover:text-emerald-700 p-1"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              
+              {loading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                  <span className="ml-2 text-sm text-emerald-700">Menganalisa...</span>
+                </div>
+              ) : transactions.length === 0 ? (
+                <p className="text-sm text-gray-600">
+                  Belum ada transaksi untuk dianalisa. Mulai catat pengeluaran dan pemasukanmu! 📝
+                </p>
+              ) : (
+                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{analysis}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Ringkasan Section */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 space-y-4">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <span>📊</span> Ringkasan Keseluruhan
+          </h3>
+          
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <span className="text-sm text-gray-600">Saldo Awal</span>
+              </div>
+              <AnimatedNumber value={stats.initialBalance} prefix="Rp " className="font-medium text-gray-800" />
+            </div>
+
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Total Pemasukan</span>
+              </div>
+              <AnimatedNumber value={stats.totalIncome} prefix="+Rp " className="font-semibold text-emerald-600" />
+            </div>
+
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Total Pengeluaran</span>
+              </div>
+              <AnimatedNumber value={stats.totalExpense} prefix="-Rp " className="font-semibold text-rose-600" />
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Transaksi Hari Ini</span>
+              </div>
+              <span className="font-medium text-gray-800">{stats.todayCount} transaksi</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Saldo Total Card - Di Bawah */}
+        <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-6 rounded-2xl shadow-xl relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-2xl">💰</span>
+              <span className="text-emerald-100 font-medium">Saldo Total</span>
+            </div>
+            <AnimatedBalance balance={stats.totalBalance} />
+            <p className="text-xs text-emerald-200 mt-2">Kumulatif semua waktu</p>
+          </div>
+        </div>
       </div>
 
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(5deg); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+      `}</style>
     </div>
   );
 };

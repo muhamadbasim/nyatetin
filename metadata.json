@@ -1,5 +1,5 @@
 {
-  "name": "Catat Uang AI",
-  "description": "A smart expense tracker replicating the 'Catat Uang' interface with AI-powered natural language transaction entry.",
+  "name": "Nyatetin",
+  "description": "Aplikasi pencatat keuangan sederhana via WhatsApp dengan AI-powered natural language.",
   "requestFramePermissions": []
 }

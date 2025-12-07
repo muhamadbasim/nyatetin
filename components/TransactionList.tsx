@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Transaction } from '../types';
 import { TrendingUp, TrendingDown, Calendar, Trash2, Edit2, X, Check } from 'lucide-react';
+import AnimatedNumber from './AnimatedNumber';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -146,7 +147,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       ? 'text-emerald-600 dark:text-emerald-400' 
                       : 'text-rose-600 dark:text-rose-400'
                   }`}>
-                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                    <AnimatedNumber 
+                      value={t.amount} 
+                      prefix={t.type === 'income' ? '+Rp ' : '-Rp '} 
+                      className={`font-bold ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+                      duration={600}
+                    />
                   </div>
                   {(onEdit || onDelete) && (
                     <div className="flex gap-1 ml-2">

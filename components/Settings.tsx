@@ -130,8 +130,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClearData, isDarkMode, tog
        </div>
 
        <div className="text-center text-xs text-gray-400 dark:text-slate-600 mt-10">
-            <p>Catat Uang AI v1.0.0</p>
-            <p>Made with ❤️ & Gemini</p>
+            <p>Nyatetin v1.0.0</p>
+            <p>Made with 💚 by Nyatetin Team</p>
        </div>
 
        {/* Password Change Modal */}

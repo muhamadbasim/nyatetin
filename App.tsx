@@ -4,6 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { TransactionList } from './components/TransactionList';
 import { Settings } from './components/Settings';
 import { AIMagicModal } from './components/AIMagicModal';
+import { AIAnalysisModal } from './components/AIAnalysisModal';
 import { Login } from './components/Login';
 import { Transaction, Tab, SummaryStats, ParsedTransactionData } from './types';
 import { apiService, LoginResponse, Transaction as ApiTransaction } from './services/apiService';
@@ -21,6 +22,7 @@ const App: React.FC = () => {
     todayCount: 0,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<LoginResponse | null>(null);
 
@@ -157,7 +159,8 @@ const App: React.FC = () => {
         {activeTab === Tab.HOME && (
           <Dashboard 
             stats={stats} 
-            onOpenAIModal={() => setIsModalOpen(true)} 
+            transactions={transactions}
+            onOpenAnalysis={() => setIsAnalysisOpen(true)} 
           />
         )}
         {activeTab === Tab.TRANSACTIONS && (
@@ -183,6 +186,15 @@ const App: React.FC = () => {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
         onAddTransaction={handleAddTransaction}
+      />
+      
+      <AIAnalysisModal
+        isOpen={isAnalysisOpen}
+        onClose={() => setIsAnalysisOpen(false)}
+        transactions={transactions}
+        totalIncome={stats.totalIncome}
+        totalExpense={stats.totalExpense}
+        totalBalance={stats.totalBalance}
       />
 
       {/* Navigation */}
