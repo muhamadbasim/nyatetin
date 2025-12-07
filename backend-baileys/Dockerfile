@@ -27,7 +27,7 @@ EXPOSE 3001
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV WORKERS_API_URL=https://catat-uang-api.muhamadbasim.workers.dev/api
-ENV DASHBOARD_URL=https://catat-uang.pages.dev
+ENV DASHBOARD_URL=https://nyatetin.pages.dev
 
 # Start the app
 CMD ["node", "dist/index.js"]

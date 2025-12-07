@@ -9,6 +9,14 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ stats, onOpenAIModal }) => {
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Selamat Pagi';
+    if (hour < 15) return 'Selamat Siang';
+    if (hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -19,14 +27,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onOpenAIModal }) =>
 
   return (
     <div className="pb-24 pt-4 px-4 space-y-6">
-      <header>
-        <h1 className="text-xl font-bold text-gray-800 dark:text-white transition-colors">Catat Uang</h1>
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            Nyatetin
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
+            {getGreeting()} 👋
+          </p>
+        </div>
+        <div className="text-3xl animate-bounce">📝</div>
       </header>
 
       {/* Main Balance Card */}
-      <div className="bg-emerald-600 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden transition-all">
-        {/* Decorative circle */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500 rounded-full opacity-50 blur-xl"></div>
+      <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden transition-all animate-gradient">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         
         <div className="flex justify-between items-start mb-2 relative z-10">
           <div className="flex items-center gap-2 text-emerald-100 text-sm font-medium">

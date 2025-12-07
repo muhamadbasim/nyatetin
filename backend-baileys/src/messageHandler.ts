@@ -6,7 +6,7 @@ import { hashPassword, generateRandomPassword } from './utils/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { syncUserToD1, syncTransactionToD1, syncBalanceToD1 } from './cloudflareSync';
 
-const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://catat-uang.pages.dev';
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://nyatetin.pages.dev';
 const WORKERS_API_URL = process.env.WORKERS_API_URL || 'https://catat-uang-api.muhamadbasim.workers.dev/api';
 
 console.log('🔧 Config:', { DASHBOARD_URL, WORKERS_API_URL });
