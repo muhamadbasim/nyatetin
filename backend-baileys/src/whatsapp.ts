@@ -2,7 +2,8 @@ import makeWASocket, {
   DisconnectReason, 
   useMultiFileAuthState,
   WASocket,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 // @ts-ignore
@@ -16,6 +17,9 @@ let connected = false;
 
 const logger = pino({ level: 'silent' });
 
+// Simple contact store
+const contacts: Record<string, any> = {};
+
 export function getQRCode(): string | null {
   return currentQR;
 }
@@ -26,6 +30,10 @@ export function isConnected(): boolean {
 
 export function getSocket(): WASocket | null {
   return sock;
+}
+
+export function getContacts() {
+  return contacts;
 }
 
 export async function sendMessage(to: string, text: string): Promise<void> {
@@ -78,6 +86,34 @@ export async function stopTyping(to: string): Promise<void> {
   }
 }
 
+// Get phone number from LID using onWhatsApp
+export async function getPhoneFromLid(lid: string): Promise<string | null> {
+  if (!sock) return null;
+  
+  try {
+    // Check contacts store first
+    if (contacts[lid]?.phone) {
+      return contacts[lid].phone;
+    }
+    
+    // Try to query WhatsApp
+    const lidNumber = lid.split('@')[0];
+    const results = await sock.onWhatsApp(lidNumber);
+    if (results && results.length > 0) {
+      const result = results[0];
+      if (result?.jid && !result.jid.includes('@lid')) {
+        const phone = result.jid.split('@')[0];
+        contacts[lid] = { ...contacts[lid], phone };
+        return phone;
+      }
+    }
+  } catch (error) {
+    console.error('Error getting phone from LID:', error);
+  }
+  
+  return null;
+}
+
 export async function initWhatsApp(): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
   const { version } = await fetchLatestBaileysVersion();
@@ -86,9 +122,12 @@ export async function initWhatsApp(): Promise<void> {
   
   sock = makeWASocket({
     version,
-    auth: state,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, logger),
+    },
     logger,
-    browser: ['Catat Uang Bot', 'Chrome', '120.0.0'],
+    browser: ['Nyatetin Bot', 'Chrome', '120.0.0'],
     syncFullHistory: false,
   });
 
@@ -121,6 +160,19 @@ export async function initWhatsApp(): Promise<void> {
       connected = true;
       currentQR = null;
       console.log('✅ WhatsApp connected!');
+    }
+  });
+
+  // Track contacts updates
+  sock.ev.on('contacts.update', (updates) => {
+    for (const update of updates) {
+      if (update.id) {
+        contacts[update.id] = { 
+          ...(contacts[update.id] || {}), 
+          ...update 
+        };
+        console.log('📇 Contact updated:', update.id);
+      }
     }
   });
 

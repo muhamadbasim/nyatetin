@@ -1,5 +1,5 @@
 import { proto } from '@whiskeysockets/baileys';
-import { sendMessage, markAsRead, sendTyping, stopTyping } from './whatsapp';
+import { sendMessage, markAsRead, sendTyping, stopTyping, getPhoneFromLid, getContacts } from './whatsapp';
 import { parseMessage } from './parser';
 import { db } from './database';
 import { hashPassword, generateRandomPassword } from './utils/auth';
@@ -13,7 +13,6 @@ console.log('🔧 Config:', { DASHBOARD_URL, WORKERS_API_URL });
 
 // Convert international format (628xxx) to local format (08xxx)
 function toLocalFormat(phone: string): string {
-  // Remove any non-digit characters first
   const digits = phone.replace(/\D/g, '');
   
   if (digits.startsWith('62')) {
@@ -22,64 +21,101 @@ function toLocalFormat(phone: string): string {
   if (digits.startsWith('0')) {
     return digits;
   }
-  // If it's just digits without country code, assume Indonesian
   return '0' + digits;
 }
 
-// Extract phone number from various JID formats
-function extractPhoneFromJid(jid: string): string {
-  // Remove suffix like @s.whatsapp.net, @lid, @c.us, etc.
-  const withoutSuffix = jid.split('@')[0];
+// Normalize phone number to 62xxx format
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
   
-  // Handle LID format (e.g., 12988132151308@lid) - this is internal WhatsApp ID
-  // We need to get the actual phone from participant or other source
-  // For now, just extract digits
-  return withoutSuffix.replace(/\D/g, '');
+  if (digits.startsWith('0')) {
+    return '62' + digits.slice(1);
+  }
+  if (!digits.startsWith('62') && digits.length >= 10) {
+    return '62' + digits;
+  }
+  return digits;
 }
 
 export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise<void> {
   if (!msg.key) return;
   
   const from = msg.key.remoteJid;
-  if (!from || from.includes('@g.us')) return; // Ignore group messages
+  if (!from || from.includes('@g.us')) return;
   
-  // Get push name (contact name) for display
   const pushName = msg.pushName || 'User';
   
-  // Try to get phone number from different sources
+  // Debug: Log full message structure
+  console.log('\n========== NEW MESSAGE ==========');
+  console.log('📩 Full JID:', from);
+  console.log('👤 Push Name:', pushName);
+  console.log('🔑 Key:', JSON.stringify(msg.key, null, 2));
+  
   let phoneNumber = '';
-  let isLidFormat = false;
-  
-  // Check if it's a LID format (@lid) - internal WhatsApp ID
-  if (from.includes('@lid')) {
-    isLidFormat = true;
-    // LID format doesn't contain real phone number
-    // Use the JID as unique identifier
-    phoneNumber = from.split('@')[0];
-  } else {
-    // Standard format @s.whatsapp.net - this contains real phone
-    phoneNumber = from.replace('@s.whatsapp.net', '').replace('@c.us', '');
-  }
-  
-  // Clean up phone number - ensure it's just digits
-  const cleanPhone = phoneNumber.replace(/\D/g, '');
-  
-  // Determine username for display
   let displayUsername = '';
   
-  if (isLidFormat) {
-    // For LID format, use pushName or generate friendly ID
-    displayUsername = pushName !== 'User' ? pushName : `user_${cleanPhone.slice(-6)}`;
-  } else {
-    // For standard format, convert to local phone format
-    let normalizedPhone = cleanPhone;
-    if (normalizedPhone.startsWith('0')) {
-      normalizedPhone = '62' + normalizedPhone.slice(1);
-    } else if (!normalizedPhone.startsWith('62') && normalizedPhone.length >= 10) {
-      normalizedPhone = '62' + normalizedPhone;
+  // Check if LID format
+  if (from.includes('@lid')) {
+    console.log('⚠️ LID format detected');
+    
+    // Try multiple methods to get real phone number
+    
+    // Method 1: Check participant field
+    if (msg.key.participant) {
+      const participant = msg.key.participant.split('@')[0];
+      console.log('📱 Participant:', participant);
+      if (!participant.includes('lid') && participant.length >= 10) {
+        phoneNumber = normalizePhone(participant);
+        console.log('✅ Got phone from participant:', phoneNumber);
+      }
     }
-    phoneNumber = normalizedPhone;
-    displayUsername = toLocalFormat(normalizedPhone);
+    
+    // Method 2: Try to get from contacts store
+    if (!phoneNumber) {
+      const contacts = getContacts();
+      const contact = contacts?.[from];
+      console.log('📇 Contact info:', JSON.stringify(contact, null, 2));
+      
+      if (contact?.phone) {
+        phoneNumber = normalizePhone(contact.phone);
+        console.log('✅ Got phone from contacts:', phoneNumber);
+      }
+    }
+    
+    // Method 3: Try getPhoneFromLid function
+    if (!phoneNumber) {
+      const lidPhone = await getPhoneFromLid(from);
+      if (lidPhone) {
+        phoneNumber = normalizePhone(lidPhone);
+        console.log('✅ Got phone from LID lookup:', phoneNumber);
+      }
+    }
+    
+    // Method 4: Check verifiedBizName or other fields
+    if (!phoneNumber && msg.verifiedBizName) {
+      console.log('🏢 Verified Biz Name:', msg.verifiedBizName);
+    }
+    
+    // Fallback: Use LID as identifier but with pushName as username
+    if (!phoneNumber) {
+      phoneNumber = from.split('@')[0]; // Use LID as unique ID
+      console.log('⚠️ Fallback to LID as ID:', phoneNumber);
+    }
+    
+    // For display, prefer phone number format, fallback to pushName
+    if (phoneNumber.length >= 10 && !phoneNumber.includes('lid') && phoneNumber.match(/^\d+$/)) {
+      displayUsername = toLocalFormat(phoneNumber);
+    } else {
+      // Use pushName or generate friendly username
+      displayUsername = pushName !== 'User' ? pushName : `user_${phoneNumber.slice(-6)}`;
+    }
+    
+  } else {
+    // Standard @s.whatsapp.net format - contains real phone
+    phoneNumber = from.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    phoneNumber = normalizePhone(phoneNumber);
+    displayUsername = toLocalFormat(phoneNumber);
+    console.log('✅ Standard format, phone:', phoneNumber);
   }
   
   const text = msg.message?.conversation || 
@@ -87,22 +123,17 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
   
   if (!text) return;
   
-  console.log(`📩 Message from JID: ${from}`);
-  console.log(`👤 Push Name: ${pushName}`);
-  console.log(`📱 Phone/ID: ${phoneNumber}, Display: ${displayUsername}`);
-  console.log(`💬 Text: ${text}`);
+  console.log('📱 Final Phone:', phoneNumber);
+  console.log('👤 Display Username:', displayUsername);
+  console.log('💬 Text:', text);
+  console.log('=================================\n');
   
-  // Mark message as read (blue checkmark)
   await markAsRead(msg.key);
-  
-  // Show typing indicator
   await sendTyping(from);
   
   try {
-    // Check if user exists
     let user = db.prepare('SELECT * FROM users WHERE phone_number = ?').get(phoneNumber) as any;
     
-    // Create new user if not exists
     if (!user) {
       const id = uuidv4();
       const password = generateRandomPassword();
@@ -114,7 +145,6 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
         VALUES (?, ?, ?, ?, 0, ?)
       `).run(id, phoneNumber, displayUsername, passwordHash, now);
       
-      // Sync to Cloudflare D1
       await syncUserToD1({
         id,
         phoneNumber,
@@ -139,7 +169,6 @@ Ketik *bantuan* untuk melihat cara pakai.`;
       return;
     }
     
-    // Parse message
     const result = parseMessage(text);
     
     if (!result.success) {
@@ -149,17 +178,13 @@ Ketik *bantuan* untuk melihat cara pakai.`;
     
     switch (result.command) {
       case 'reset':
-        // Reset password only, keep account and transactions
         const newPassword = generateRandomPassword();
         const newPasswordHash = hashPassword(newPassword);
-        
-        // Use existing username from database
         const existingUsername = user.username || displayUsername;
         
         db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
           .run(newPasswordHash, user.id);
         
-        // Sync new password to D1
         await syncUserToD1({
           id: user.id,
           phoneNumber,
@@ -186,7 +211,6 @@ Data transaksi kamu tetap aman.`;
         break;
         
       case 'get_balance':
-        // Calculate total balance from transactions
         const initialBalance = user.initial_balance || 0;
         const incomeResult = db.prepare(
           "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = ? AND type = 'income'"
@@ -210,7 +234,6 @@ Data transaksi kamu tetap aman.`;
       case 'set_balance':
         db.prepare('UPDATE users SET initial_balance = ? WHERE id = ?')
           .run(result.data!.amount, user.id);
-        // Sync to D1
         await syncBalanceToD1(user.id, result.data!.amount);
         await sendReply(from, `✅ Saldo awal diubah menjadi Rp ${formatNumber(result.data!.amount)}`);
         break;
@@ -224,7 +247,6 @@ Data transaksi kamu tetap aman.`;
           VALUES (?, ?, ?, ?, ?, 'Lainnya', 'whatsapp', ?)
         `).run(txId, user.id, result.data!.type, result.data!.amount, result.data!.description, now);
         
-        // Sync to D1
         await syncTransactionToD1({
           id: txId,
           userId: user.id,
@@ -249,9 +271,7 @@ Data transaksi kamu tetap aman.`;
   }
 }
 
-// Helper to send message with typing delay
 async function sendReply(to: string, text: string): Promise<void> {
-  // Small delay to simulate typing (makes it feel more natural)
   await new Promise(resolve => setTimeout(resolve, 500));
   await stopTyping(to);
   await sendMessage(to, text);
