@@ -13,10 +13,28 @@ console.log('🔧 Config:', { DASHBOARD_URL, WORKERS_API_URL });
 
 // Convert international format (628xxx) to local format (08xxx)
 function toLocalFormat(phone: string): string {
-  if (phone.startsWith('62')) {
-    return '0' + phone.slice(2);
+  // Remove any non-digit characters first
+  const digits = phone.replace(/\D/g, '');
+  
+  if (digits.startsWith('62')) {
+    return '0' + digits.slice(2);
   }
-  return phone;
+  if (digits.startsWith('0')) {
+    return digits;
+  }
+  // If it's just digits without country code, assume Indonesian
+  return '0' + digits;
+}
+
+// Extract phone number from various JID formats
+function extractPhoneFromJid(jid: string): string {
+  // Remove suffix like @s.whatsapp.net, @lid, @c.us, etc.
+  const withoutSuffix = jid.split('@')[0];
+  
+  // Handle LID format (e.g., 12988132151308@lid) - this is internal WhatsApp ID
+  // We need to get the actual phone from participant or other source
+  // For now, just extract digits
+  return withoutSuffix.replace(/\D/g, '');
 }
 
 export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise<void> {
@@ -25,14 +43,46 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
   const from = msg.key.remoteJid;
   if (!from || from.includes('@g.us')) return; // Ignore group messages
   
-  const phoneNumber = from.replace('@s.whatsapp.net', '');
+  // Try to get phone number from different sources
+  let phoneNumber = '';
+  
+  // Check if it's a LID format (@lid) - use participant if available
+  if (from.includes('@lid')) {
+    // Try to get from participant field
+    phoneNumber = msg.key.participant?.split('@')[0] || '';
+    
+    // If still no phone, try pushName or other fields
+    if (!phoneNumber || phoneNumber.includes('@')) {
+      // Extract from the JID itself as fallback
+      phoneNumber = extractPhoneFromJid(from);
+    }
+  } else {
+    // Standard format @s.whatsapp.net
+    phoneNumber = from.replace('@s.whatsapp.net', '').replace('@c.us', '');
+  }
+  
+  // Clean up phone number - ensure it's just digits
+  phoneNumber = phoneNumber.replace(/\D/g, '');
+  
+  // If phone number looks like Indonesian format
+  if (phoneNumber.length >= 10) {
+    // Ensure it starts with 62 for storage
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '62' + phoneNumber.slice(1);
+    } else if (!phoneNumber.startsWith('62')) {
+      phoneNumber = '62' + phoneNumber;
+    }
+  }
+  
   const localPhone = toLocalFormat(phoneNumber);
   const text = msg.message?.conversation || 
                msg.message?.extendedTextMessage?.text || '';
   
   if (!text) return;
   
-  console.log(`📩 Message from ${phoneNumber}: ${text}`);
+  console.log(`📩 Message from JID: ${from}`);
+  console.log(`📱 Extracted phone: ${phoneNumber}, Local: ${localPhone}`);
+  console.log(`💬 Text: ${text}`);
   
   // Mark message as read (blue checkmark)
   await markAsRead(msg.key);
