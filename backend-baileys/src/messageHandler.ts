@@ -43,45 +43,53 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
   const from = msg.key.remoteJid;
   if (!from || from.includes('@g.us')) return; // Ignore group messages
   
+  // Get push name (contact name) for display
+  const pushName = msg.pushName || 'User';
+  
   // Try to get phone number from different sources
   let phoneNumber = '';
+  let isLidFormat = false;
   
-  // Check if it's a LID format (@lid) - use participant if available
+  // Check if it's a LID format (@lid) - internal WhatsApp ID
   if (from.includes('@lid')) {
-    // Try to get from participant field
-    phoneNumber = msg.key.participant?.split('@')[0] || '';
-    
-    // If still no phone, try pushName or other fields
-    if (!phoneNumber || phoneNumber.includes('@')) {
-      // Extract from the JID itself as fallback
-      phoneNumber = extractPhoneFromJid(from);
-    }
+    isLidFormat = true;
+    // LID format doesn't contain real phone number
+    // Use the JID as unique identifier
+    phoneNumber = from.split('@')[0];
   } else {
-    // Standard format @s.whatsapp.net
+    // Standard format @s.whatsapp.net - this contains real phone
     phoneNumber = from.replace('@s.whatsapp.net', '').replace('@c.us', '');
   }
   
   // Clean up phone number - ensure it's just digits
-  phoneNumber = phoneNumber.replace(/\D/g, '');
+  const cleanPhone = phoneNumber.replace(/\D/g, '');
   
-  // If phone number looks like Indonesian format
-  if (phoneNumber.length >= 10) {
-    // Ensure it starts with 62 for storage
-    if (phoneNumber.startsWith('0')) {
-      phoneNumber = '62' + phoneNumber.slice(1);
-    } else if (!phoneNumber.startsWith('62')) {
-      phoneNumber = '62' + phoneNumber;
+  // Determine username for display
+  let displayUsername = '';
+  
+  if (isLidFormat) {
+    // For LID format, use pushName or generate friendly ID
+    displayUsername = pushName !== 'User' ? pushName : `user_${cleanPhone.slice(-6)}`;
+  } else {
+    // For standard format, convert to local phone format
+    let normalizedPhone = cleanPhone;
+    if (normalizedPhone.startsWith('0')) {
+      normalizedPhone = '62' + normalizedPhone.slice(1);
+    } else if (!normalizedPhone.startsWith('62') && normalizedPhone.length >= 10) {
+      normalizedPhone = '62' + normalizedPhone;
     }
+    phoneNumber = normalizedPhone;
+    displayUsername = toLocalFormat(normalizedPhone);
   }
   
-  const localPhone = toLocalFormat(phoneNumber);
   const text = msg.message?.conversation || 
                msg.message?.extendedTextMessage?.text || '';
   
   if (!text) return;
   
   console.log(`📩 Message from JID: ${from}`);
-  console.log(`📱 Extracted phone: ${phoneNumber}, Local: ${localPhone}`);
+  console.log(`👤 Push Name: ${pushName}`);
+  console.log(`📱 Phone/ID: ${phoneNumber}, Display: ${displayUsername}`);
   console.log(`💬 Text: ${text}`);
   
   // Mark message as read (blue checkmark)
@@ -104,13 +112,13 @@ export async function handleIncomingMessage(msg: proto.IWebMessageInfo): Promise
       db.prepare(`
         INSERT INTO users (id, phone_number, username, password_hash, initial_balance, created_at)
         VALUES (?, ?, ?, ?, 0, ?)
-      `).run(id, phoneNumber, localPhone, passwordHash, now);
+      `).run(id, phoneNumber, displayUsername, passwordHash, now);
       
       // Sync to Cloudflare D1
       await syncUserToD1({
         id,
         phoneNumber,
-        username: localPhone,
+        username: displayUsername,
         passwordHash,
         initialBalance: 0,
       });
@@ -122,7 +130,7 @@ Akun kamu sudah dibuat otomatis.
 📱 *Login Dashboard:*
 ${DASHBOARD_URL}
 
-👤 Username: \`${localPhone}\`
+👤 Username: \`${displayUsername}\`
 🔑 Password: \`${password}\`
 
 Ketik *bantuan* untuk melihat cara pakai.`;
@@ -145,6 +153,9 @@ Ketik *bantuan* untuk melihat cara pakai.`;
         const newPassword = generateRandomPassword();
         const newPasswordHash = hashPassword(newPassword);
         
+        // Use existing username from database
+        const existingUsername = user.username || displayUsername;
+        
         db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
           .run(newPasswordHash, user.id);
         
@@ -152,7 +163,7 @@ Ketik *bantuan* untuk melihat cara pakai.`;
         await syncUserToD1({
           id: user.id,
           phoneNumber,
-          username: localPhone,
+          username: existingUsername,
           passwordHash: newPasswordHash,
           initialBalance: user.initial_balance || 0,
         });
@@ -162,7 +173,7 @@ Ketik *bantuan* untuk melihat cara pakai.`;
 📱 *Login Dashboard:*
 ${DASHBOARD_URL}
 
-👤 Username: \`${localPhone}\`
+👤 Username: \`${existingUsername}\`
 🔑 Password baru: \`${newPassword}\`
 
 Data transaksi kamu tetap aman.`;
