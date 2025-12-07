@@ -1,3 +1,4 @@
+import AnimatedBalance from './AnimatedBalance';
 import React from 'react';
 import { Wallet, TrendingUp, TrendingDown, MessageCircle, ArrowRight } from 'lucide-react';
 import { SummaryStats } from '../types';
@@ -36,7 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onOpenAIModal }) =>
         </div>
         
         <div className="relative z-10">
-          <h2 className="text-4xl font-bold mb-2">{formatCurrency(stats.totalBalance)}</h2>
+          <AnimatedBalance balance={stats.totalBalance} />
           <p className="text-xs text-emerald-200">
             Kumulatif semua waktu • {stats.todayCount} transaksi hari ini
           </p>
